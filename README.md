@@ -41,7 +41,7 @@ jobs:
     with:
       allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards'
     secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Documentation

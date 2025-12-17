@@ -33,7 +33,7 @@ jobs:
     
     secrets:
       # Default GITHUB_TOKEN is sufficient for creating PRs
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
       
       # Optional: Token for fetching commit logs from private repositories
       # If not provided, commit logs won't be included in PRs

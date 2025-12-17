@@ -49,7 +49,7 @@ jobs:
     with:
       allowed_senders: 'lhasystems/c_lib_control'
     secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### Optional Secret

@@ -81,7 +81,7 @@ A reusable workflow that handles repository_dispatch events, updates manifest fi
 - `update_script_path` (optional): Path to update script (default: downloads from ci-actions)
 
 **Secrets:**
-- `github_token` (required): GitHub token for creating PRs (GITHUB_TOKEN is sufficient)
+- `gh_token` (required): GitHub token for creating PRs (GITHUB_TOKEN is sufficient)
 - `private_repo_token` (optional): Token for fetching commit logs from private repos
 
 **Example Usage in Target Repository:**
@@ -100,7 +100,7 @@ jobs:
       allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards'
       manifest_path: 'west.yml'
     secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
       private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 ```
 
@@ -176,7 +176,7 @@ python3 tools/update_west.py west.yml lhasystems/c_lib_control abc1234567890def
          allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards'
          manifest_path: 'west.yml'
        secrets:
-         github_token: ${{ secrets.GITHUB_TOKEN }}
+         gh_token: ${{ secrets.GITHUB_TOKEN }}
          private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
    ```
 
