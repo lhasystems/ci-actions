@@ -41,7 +41,7 @@ jobs:
     with:
       allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards'
     secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Documentation
@@ -72,7 +72,7 @@ Handles dependency update notifications, updates manifest files, and creates pul
 - `allowed_senders`: Comma-separated list of authorized sender repositories
 
 **Required secrets:**
-- `github_token`: Token for PR creation
+- `gh_token`: Token for PR creation
 
 ## Tools
 

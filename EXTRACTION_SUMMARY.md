@@ -121,7 +121,7 @@ jobs:
       allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards,lhasystems/c_lib_mesh_vav'
       manifest_path: 'west.yml'
     secrets:
-      github_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_token: ${{ secrets.GITHUB_TOKEN }}
       private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
 ```
 

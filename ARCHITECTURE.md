@@ -164,7 +164,7 @@ Visual representations of the dispatch dependency update system.
 ┌──────────────────────────────────────────────────────────────┐
 │ Step 6: Create Pull Request                                  │
 │ • Branch: auto/update-{sender}-{commit}                      │
-│ • Title: chore: update {sender} to {short_hash}              │
+│ • Title: ci: update {sender} to {short_hash}                 │
 │ • Body: Includes commit log and update details               │
 │ • Labels: automated, ci                                      │
 │ • Auto-delete branch after merge                             │
@@ -242,7 +242,7 @@ Visual representations of the dispatch dependency update system.
          ▼
 ┌──────────────────────────────────────────┐
 │  Pull Request #123                       │
-│  chore: update c_lib_control to abc1234  │
+│  ci: update c_lib_control to abc1234     │
 │                                          │
 │  Updates west.yml with latest changes    │
 │  Commit log included in description      │
