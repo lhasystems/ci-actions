@@ -126,13 +126,19 @@ jobs:
 
       - name: Fetch commit log
         id: changelog
-        if: steps.update.outputs.old_revision != '' && secrets.private_repo_token != ''
+        if: steps.update.outputs.old_revision != ''
         env:
           GH_TOKEN: ${{ secrets.private_repo_token }}
         run: |
           SENDER="${{ steps.validate.outputs.sender }}"
           OLD_REV="${{ steps.update.outputs.old_revision }}"
           NEW_REV="${{ steps.validate.outputs.commit }}"
+
+          # Skip changelog when no token is available (e.g., public-only runs)
+          if [ -z "$GH_TOKEN" ]; then
+            echo "changelog=No commit log available (missing private_repo_token)" >> $GITHUB_OUTPUT
+            exit 0
+          fi
           
           # Validate revisions
           if [ -z "$OLD_REV" ] || [ -z "$NEW_REV" ]; then
