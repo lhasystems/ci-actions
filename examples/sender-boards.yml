@@ -1,0 +1,36 @@
+# Example workflow for board definition repositories (like zephyr_boards)
+# This notifies dependent applications when board definitions change
+
+name: Notify dependent repositories
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # Watch specific board directories
+      - 'boards/lha/ec32/**'
+      - 'boards/lha/ec32v1/**'
+      # Add other board directories as needed
+      # - 'boards/lha/el30/**'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify-dependencies:
+    uses: lhasystems/ci-actions/.github/workflows/dispatch-dependency-update.yml@main
+    with:
+      # Applications that use these board definitions
+      target_repos: 'ec_diffuser'
+      
+      # Optional: customize event type
+      # event_type: 'dependency_update_request'
+    
+    secrets:
+      # Token with repo scope to dispatch events
+      # Configure in repository Settings → Secrets and variables → Actions
+      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}

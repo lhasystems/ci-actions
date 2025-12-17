@@ -1,0 +1,173 @@
+name: Handle dependency update
+
+# Reusable workflow for handling repository_dispatch events from dependent repositories
+# This workflow should be called from target repositories (ec_diffuser, etc.)
+# when they receive dependency_update_request events
+
+on:
+  workflow_call:
+    inputs:
+      allowed_senders:
+        description: 'Comma-separated list of allowed sender repositories (e.g., "lhasystems/c_lib_control,lhasystems/zephyr_boards")'
+        required: true
+        type: string
+      manifest_path:
+        description: 'Path to the west.yml or manifest file to update'
+        required: false
+        type: string
+        default: 'west.yml'
+      update_script_path:
+        description: 'Path to the update script (relative to repo root or absolute URL)'
+        required: false
+        type: string
+        default: 'https://raw.githubusercontent.com/lhasystems/ci-actions/main/tools/update_west.py'
+    secrets:
+      github_token:
+        description: 'GitHub token for creating pull requests (default GITHUB_TOKEN is sufficient)'
+        required: true
+      private_repo_token:
+        description: 'GitHub token with access to private repositories for fetching commit logs'
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  handle-dispatch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show payload (debug)
+        run: |
+          echo "payload: ${{ toJson(github.event.client_payload) }}"
+
+      - name: Validate sender
+        id: validate
+        run: |
+          # Parse allowed senders
+          IFS=',' read -ra ALLOWED <<< "${{ inputs.allowed_senders }}"
+          SENDER=$(jq -r '.sender' <<< '${{ toJson(github.event.client_payload) }}')
+          
+          echo "Received dispatch from: $SENDER"
+          
+          # Validate sender is in allowed list
+          ok=false
+          for a in "${ALLOWED[@]}"; do
+            # Trim whitespace
+            a=$(echo "$a" | xargs)
+            if [ "$a" = "$SENDER" ]; then
+              ok=true
+              break
+            fi
+          done
+          
+          if [ "$ok" != "true" ]; then
+            echo "❌ Sender not authorized: $SENDER" >&2
+            echo "Allowed senders: ${ALLOWED[*]}"
+            exit 1
+          fi
+          
+          echo "✓ Sender authorized: $SENDER"
+          
+          # Extract payload fields
+          COMMIT=$(jq -r '.commit' <<< '${{ toJson(github.event.client_payload) }}')
+          SHORT_HASH="${COMMIT:0:7}"
+          BRANCH=$(jq -r '.branch' <<< '${{ toJson(github.event.client_payload) }}')
+          
+          echo "sender=$SENDER" >> $GITHUB_OUTPUT
+          echo "commit=$COMMIT" >> $GITHUB_OUTPUT
+          echo "short_hash=$SHORT_HASH" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Download update script (if remote)
+        if: startsWith(inputs.update_script_path, 'http')
+        run: |
+          mkdir -p tools
+          curl -sSL "${{ inputs.update_script_path }}" -o tools/update_west.py
+          chmod +x tools/update_west.py
+
+      - name: Update manifest revision
+        id: update
+        run: |
+          SENDER="${{ steps.validate.outputs.sender }}"
+          COMMIT="${{ steps.validate.outputs.commit }}"
+          MANIFEST="${{ inputs.manifest_path }}"
+          
+          # Determine script path
+          if [[ "${{ inputs.update_script_path }}" == http* ]]; then
+            SCRIPT="tools/update_west.py"
+          else
+            SCRIPT="${{ inputs.update_script_path }}"
+          fi
+          
+          echo "Updating $MANIFEST for $SENDER -> revision $COMMIT"
+          
+          # Run the update script
+          OUTPUT=$(python3 "$SCRIPT" "$MANIFEST" "$SENDER" "$COMMIT")
+          echo "$OUTPUT"
+          
+          # Parse output for old revision
+          OLD_REV=$(echo "$OUTPUT" | grep "^old_revision=" | cut -d'=' -f2- | tr -d '[:space:]')
+          if [ -n "$OLD_REV" ]; then
+            echo "old_revision=$OLD_REV" >> $GITHUB_OUTPUT
+            echo "Updated from $OLD_REV to $COMMIT"
+          else
+            echo "Initial revision set to $COMMIT"
+          fi
+          
+          # Show diff
+          git --no-pager diff --minimal -- "$MANIFEST" || true
+
+      - name: Fetch commit log
+        id: changelog
+        if: steps.update.outputs.old_revision != '' && secrets.private_repo_token != ''
+        env:
+          GH_TOKEN: ${{ secrets.private_repo_token }}
+        run: |
+          SENDER="${{ steps.validate.outputs.sender }}"
+          OLD_REV="${{ steps.update.outputs.old_revision }}"
+          NEW_REV="${{ steps.validate.outputs.commit }}"
+          
+          # Validate revisions
+          if [ -z "$OLD_REV" ] || [ -z "$NEW_REV" ]; then
+            echo "changelog=Could not fetch commit log: missing revision" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Fetch commit log using gh CLI (has access to private repos)
+          CHANGELOG=$(gh api repos/${SENDER}/compare/${OLD_REV}...${NEW_REV} \
+            --jq '.commits[] | "- [`\(.sha[0:7])`](\(.html_url)) \(.commit.message | split("\n") | first)"' \
+            2>&1 || echo "Could not fetch commit log: API error")
+          
+          # Save to output using heredoc
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create PR with changes (if any)
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.github_token }}
+          branch: "auto/update-${{ steps.validate.outputs.sender }}-${{ steps.validate.outputs.commit }}"
+          commit-message: |
+            ci: update ${{ steps.validate.outputs.sender }} to ${{ steps.validate.outputs.commit }}
+            
+            ${{ steps.changelog.outputs.changelog || 'No commit log available' }}
+          title: "ci: update ${{ steps.validate.outputs.sender }} to ${{ steps.validate.outputs.short_hash }}"
+          body: |
+            This PR updates ${{ inputs.manifest_path }} to point the project ${{ steps.validate.outputs.sender }} at commit ${{ steps.validate.outputs.commit }}.
+            Triggered by a change in ${{ steps.validate.outputs.sender }}.
+            
+            ## Changes
+            ${{ steps.update.outputs.old_revision && format('Updating from `{0}` to `{1}`', steps.update.outputs.old_revision, steps.validate.outputs.commit) || 'Initial revision set' }}
+            
+            ## Commit Log
+            ${{ steps.changelog.outputs.changelog || 'No commit log available' }}
+          labels: automated, ci
+          delete-branch: true

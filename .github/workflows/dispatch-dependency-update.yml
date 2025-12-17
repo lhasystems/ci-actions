@@ -1,0 +1,77 @@
+name: Dispatch dependency update
+
+# Reusable workflow for notifying dependent repositories of changes
+# This workflow should be called from source repositories (c_lib_control, zephyr_boards, etc.)
+# when changes are made to dependency-critical paths
+
+on:
+  workflow_call:
+    inputs:
+      target_repos:
+        description: 'Comma-separated list of target repository names (e.g., "ec_diffuser,other_repo")'
+        required: true
+        type: string
+      event_type:
+        description: 'The repository_dispatch event type to send'
+        required: false
+        type: string
+        default: 'dependency_update_request'
+    secrets:
+      dispatch_token:
+        description: 'GitHub token with repo scope for dispatching to target repositories'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  send-dispatch:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Parse the comma-separated target_repos into a matrix
+        target_repo: ${{ fromJson(format('["{0}"]', join(split(inputs.target_repos, ','), '","'))) }}
+      fail-fast: false  # Continue notifying other repos even if one fails
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine last commit touching watched paths
+        id: find_commit
+        run: |
+          # Simplified: use the triggering commit directly
+          LAST_COMMIT="$GITHUB_SHA"
+          echo "commit=$LAST_COMMIT" >> $GITHUB_OUTPUT
+          echo "short=${LAST_COMMIT:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Call repository_dispatch on ${{ matrix.target_repo }}
+        env:
+          DISPATCH_TOKEN: ${{ secrets.dispatch_token }}
+        run: |
+          COMMIT=${{ steps.find_commit.outputs.commit }}
+          SENDER_REPO="${{ github.repository }}"
+          TARGET_REPO="${{ matrix.target_repo }}"
+          EVENT_TYPE="${{ inputs.event_type }}"
+          PAYLOAD=$(jq -n --arg commit "$COMMIT" --arg sender "$SENDER_REPO" --arg branch "${GITHUB_REF#refs/heads/}" '{commit: $commit, sender: $sender, branch: $branch}')
+          
+          echo "Dispatching to $TARGET_REPO with payload: $PAYLOAD"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: token $DISPATCH_TOKEN" \
+            "https://api.github.com/repos/lhasystems/$TARGET_REPO/dispatches" \
+            -d "$(jq -n --arg et "$EVENT_TYPE" --argjson cp "$PAYLOAD" '{event_type:$et, client_payload:$cp}')")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n-1)
+          
+          if [ "$HTTP_CODE" = "204" ]; then
+            echo "✓ Successfully dispatched to $TARGET_REPO"
+          else
+            echo "✗ Failed to dispatch to $TARGET_REPO (HTTP $HTTP_CODE)"
+            echo "$BODY"
+            exit 1
+          fi

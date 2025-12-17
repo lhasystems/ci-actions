@@ -1,0 +1,39 @@
+# Example workflow for C library repositories (like c_lib_control)
+# This notifies dependent repositories when library code changes
+
+name: Notify dependent repositories
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      # Watch all source code
+      - 'src/**'
+      # Watch all public headers
+      - 'include/**'
+      # Watch configuration files
+      - 'Kconfig'
+      - 'CMakeLists.txt'
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify-dependencies:
+    uses: lhasystems/ci-actions/.github/workflows/dispatch-dependency-update.yml@main
+    with:
+      # Repositories that depend on this library
+      # Add all repositories that use this library
+      target_repos: 'ec_diffuser'
+      
+      # Optional: customize event type (default: dependency_update_request)
+      # event_type: 'dependency_update_request'
+    
+    secrets:
+      # Token with repo scope to dispatch events
+      # Configure in repository Settings → Secrets and variables → Actions
+      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}

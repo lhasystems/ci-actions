@@ -1,0 +1,41 @@
+# Example workflow for application repositories (like ec_diffuser)
+# This handles dependency update notifications and creates PRs
+
+name: Handle dependency updates
+
+on:
+  repository_dispatch:
+    # Listen for dependency update events
+    types: [dependency_update_request]
+  
+  # Allow manual triggering for testing
+  workflow_dispatch:
+
+# Required permissions for creating PRs
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  handle-update:
+    uses: lhasystems/ci-actions/.github/workflows/handle-dependency-update.yml@main
+    with:
+      # List all repositories that can trigger updates
+      # Only these repositories will be allowed to send updates
+      allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards'
+      
+      # Path to your west.yml or manifest file
+      # Default is 'west.yml' in repository root
+      manifest_path: 'west.yml'
+      
+      # Optional: Use local update script instead of downloading from ci-actions
+      # update_script_path: 'tools/update_west.py'
+    
+    secrets:
+      # Default GITHUB_TOKEN is sufficient for creating PRs
+      github_token: ${{ secrets.GITHUB_TOKEN }}
+      
+      # Optional: Token for fetching commit logs from private repositories
+      # If not provided, commit logs won't be included in PRs
+      # Token needs 'repo' scope for private repo access
+      private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
