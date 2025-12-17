@@ -72,7 +72,7 @@ Handles dependency update notifications, updates manifest files, and creates pul
 - `allowed_senders`: Comma-separated list of authorized sender repositories
 
 **Required secrets:**
-- `github_token`: Token for PR creation
+- `gh_token`: Token for PR creation
 
 ## Tools
 
