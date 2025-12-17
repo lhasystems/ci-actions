@@ -25,12 +25,27 @@ permissions:
   contents: read
 
 jobs:
+  parse-repos:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.parse.outputs.matrix }}
+    steps:
+      - name: Parse target repositories
+        id: parse
+        run: |
+          # Convert comma-separated list to JSON array
+          INPUT="${{ inputs.target_repos }}"
+          # Remove spaces and convert to JSON array
+          JSON=$(echo "$INPUT" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "matrix=$JSON" >> $GITHUB_OUTPUT
+          echo "Target repos: $JSON"
+
   send-dispatch:
+    needs: parse-repos
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        # Parse the comma-separated target_repos into a matrix
-        target_repo: ${{ fromJson(format('["{0}"]', join(split(inputs.target_repos, ','), '","'))) }}
+        target_repo: ${{ fromJson(needs.parse-repos.outputs.matrix) }}
       fail-fast: false  # Continue notifying other repos even if one fails
 
     steps:

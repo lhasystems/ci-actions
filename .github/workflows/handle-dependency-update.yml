@@ -22,7 +22,7 @@ on:
         type: string
         default: 'https://raw.githubusercontent.com/lhasystems/ci-actions/main/tools/update_west.py'
     secrets:
-      github_token:
+      gh_token:
         description: 'GitHub token for creating pull requests (default GITHUB_TOKEN is sufficient)'
         required: true
       private_repo_token:
@@ -159,7 +159,7 @@ jobs:
       - name: Create PR with changes (if any)
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.github_token }}
+          token: ${{ secrets.gh_token }}
           branch: "auto/update-${{ steps.validate.outputs.sender }}-${{ steps.validate.outputs.commit }}"
           commit-message: |
             ci: update ${{ steps.validate.outputs.sender }} to ${{ steps.validate.outputs.commit }}
