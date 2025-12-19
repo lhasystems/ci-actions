@@ -17,6 +17,7 @@ Automated dependency tracking and updates across repositories using GitHub's rep
 - **Sender Workflow:** Notifies dependent repositories when source code changes
 - **Receiver Workflow:** Handles notifications and creates update PRs automatically
 - **Update Tool:** Python script for updating west.yml manifest files
+- **Merge Order Safety:** Single-branch-per-sender strategy prevents PRs from being merged in wrong order
 
 📖 **[Full Documentation](DISPATCH_SYSTEM.md)**
 
@@ -48,6 +49,7 @@ jobs:
 
 - **[Quick Reference](QUICK_REFERENCE.md)** - Fast lookup for common tasks
 - **[Full Documentation](DISPATCH_SYSTEM.md)** - Comprehensive guide and setup
+- **[Merge Order Safety](MERGE_ORDER_SAFETY.md)** - How the system prevents wrong-order PR merging
 - **[Architecture Diagrams](ARCHITECTURE.md)** - Visual system overview
 - **[Extraction Summary](EXTRACTION_SUMMARY.md)** - What was extracted and migration path
 - **[Examples](examples/)** - Sample workflow files for different repository types
