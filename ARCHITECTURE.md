@@ -162,18 +162,22 @@ Visual representations of the dispatch dependency update system.
                         │
                         ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ Step 6: Create Pull Request                                  │
-│ • Branch: auto/update-{sender}-{commit}                      │
-│ • Title: ci: update {sender} to {short_hash}                 │
-│ • Body: Includes commit log and update details               │
+│ Step 6: Create/Update Pull Request                           │
+│ • Branch: auto/update-{sender} (consistent per sender)       │
+│ • Title: ci: update {sender} (latest)                        │
+│ • Body: Includes current commit, commit log, and details     │
 │ • Labels: automated, ci                                      │
 │ • Auto-delete branch after merge                             │
+│ • Force-pushes to same branch if PR already exists           │
 └──────────────────────────────────────────────────────────────┘
                         │
                         ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ Result: Pull Request Created                                 │
+│ Result: Pull Request Created/Updated                         │
 │                                                              │
+│ • Only one PR per sender exists at any time                  │
+│ • New updates from same sender update the existing PR        │
+│ • Prevents merge order issues by design                      │
 │ Developer reviews and merges PR                              │
 └──────────────────────────────────────────────────────────────┘
 ```

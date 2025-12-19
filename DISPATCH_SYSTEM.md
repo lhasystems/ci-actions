@@ -282,6 +282,23 @@ The receiver workflow validates that dispatches come from allowed senders. Any r
 2. Check west.yml has valid YAML syntax
 3. Ensure repo-path in manifest matches repository name
 
+### Force-Push Warnings on PR Branch
+
+**Symptoms:** GitHub shows force-push warnings on auto-update branches
+
+**Solutions:**
+This is **expected behavior**. The system intentionally force-pushes to keep the PR current with the latest changes from the sender. This is a feature, not a bug, that prevents merge order issues.
+
+### Multiple PRs from Same Sender
+
+**Symptoms:** Multiple open PRs exist for the same sender repository
+
+**Solutions:**
+This should not happen with the current implementation. If you see this:
+1. Verify you're using the latest version of `handle-dependency-update.yml`
+2. Check that all PRs are using the same branch name pattern `auto/update-{sender}`
+3. Manually close older PRs if they exist from previous versions
+
 ## Testing
 
 ### Manual Dispatch
@@ -337,6 +354,33 @@ If you have existing dispatch workflows in your repositories:
    - Reference this central documentation
    - Remove repository-specific dispatch documentation
 
+## Handling Multiple Updates
+
+### Single-Branch-Per-Sender Strategy
+
+To prevent issues with merging PRs in the wrong order, the system uses a **single branch per sender** approach:
+
+- Each sender gets one consistent branch: `auto/update-{sender}`
+- When a new update arrives from the same sender, it **force-pushes** to the existing branch
+- This automatically updates the existing PR with the latest changes
+- Only one PR per sender exists at any time, eliminating merge order concerns
+
+**Example Scenario:**
+1. `c_lib_control` pushes commit `abc123` → PR created on branch `auto/update-lhasystems/c_lib_control`
+2. `c_lib_control` pushes commit `def456` → Same branch is force-pushed, PR is updated
+3. You only see one PR that always points to the latest commit
+
+**Benefits:**
+- ✅ Impossible to merge in wrong order (only one PR exists)
+- ✅ No accumulation of stale PRs
+- ✅ PR automatically stays current with latest changes
+- ✅ Simple and maintainable
+
+**Considerations:**
+- Force-pushes to the branch are expected behavior
+- Each update includes a complete commit log from previous to current revision
+- The PR description shows the current commit hash
+
 ## Best Practices
 
 1. **Limit Watched Paths:** Only watch paths that truly affect dependencies
@@ -344,6 +388,7 @@ If you have existing dispatch workflows in your repositories:
 3. **Validate Changes:** Review auto-generated PRs before merging
 4. **Monitor Failures:** Set up notifications for workflow failures
 5. **Version Pinning:** Consider pinning workflow versions (e.g., `@v1` instead of `@main`)
+6. **Rapid Updates:** The system handles rapid successive updates gracefully by updating the same PR
 
 ## References
 
