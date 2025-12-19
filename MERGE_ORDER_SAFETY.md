@@ -150,6 +150,66 @@ Reviewers should understand:
 - The PR always shows the **latest** state from the sender
 - Review and merge the current state shown in the PR
 
+### Selective Updates: What If You Want to Skip an Update?
+
+**Question:** "If there are 2 updates, how can I merge just one update?"
+
+**Answer:** With the single-branch-per-sender strategy, you always get the **latest** update, not intermediate ones. This is by design to ensure correctness. However, if you need to selectively apply updates:
+
+#### Option 1: Merge the Latest (Recommended)
+Simply merge the PR as-is. The commit log shows all changes from your last merged revision to the latest, so you're getting all intermediate updates in one merge.
+
+#### Option 2: Manual Selective Update
+If you need to cherry-pick a specific commit and skip others:
+
+1. **Close the auto-generated PR** (don't merge it)
+2. **Manually update** your `west.yml` to point to the specific commit you want:
+   ```bash
+   # Edit west.yml manually or use the update script
+   python3 tools/update_west.py west.yml lhasystems/c_lib_control <specific-commit-sha>
+   
+   # Create a manual PR
+   git checkout -b manual-update-c_lib_control
+   git add west.yml
+   git commit -m "ci: manual update c_lib_control to specific commit"
+   git push origin manual-update-c_lib_control
+   gh pr create --title "Manual update c_lib_control" --body "Selective update"
+   ```
+3. **Merge your manual PR**
+4. The next auto-generated PR will update from your manually selected commit to the next latest
+
+#### Option 3: Pause Auto-Updates Temporarily
+If you want to pause automatic updates temporarily:
+
+1. **Don't merge the PR** - leave it open
+2. New updates will continue to update the same PR
+3. When ready, merge the PR to get all accumulated updates at once
+
+#### Option 4: Manual Merge After Review
+If you want to update to a specific intermediate commit:
+
+1. **Check out the PR branch locally:**
+   ```bash
+   gh pr checkout <PR-number>
+   ```
+2. **Revert the manifest to a specific commit:**
+   ```bash
+   # View git history to find the commit you want
+   git log --oneline
+   
+   # Reset to the specific commit you want
+   git reset --hard <commit-sha-you-want>
+   
+   # Force push back
+   git push --force
+   ```
+3. **Merge the PR** before the next update arrives
+
+**Trade-off Note:** The single-branch strategy prioritizes **always having the latest** over **selective updates**. This prevents the wrong-order merge problem but reduces flexibility. If you frequently need selective updates, consider:
+- Coordinating with the source repository to avoid rapid commits
+- Using manual updates for critical selective cases
+- Disabling auto-updates and managing dependencies manually
+
 ## Comparison with Alternative Approaches
 
 ### Alternative 1: Unique Branch Names (Original Approach)

@@ -232,6 +232,17 @@ with:
   allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards,lhasystems/new_sender'
 ```
 
+### Selective Updates (Manual Override)
+
+The single-branch-per-sender strategy always provides the **latest** update. If you need to apply only specific updates:
+
+1. **Close the auto-generated PR** without merging
+2. **Manually update** `west.yml` to the desired commit
+3. **Create a manual PR** with your selected revision
+4. **Merge the manual PR**
+
+The next auto-update will continue from your manually selected commit. See [MERGE_ORDER_SAFETY.md](MERGE_ORDER_SAFETY.md#selective-updates-what-if-you-want-to-skip-an-update) for detailed procedures.
+
 ## Security Considerations
 
 ### Token Permissions
