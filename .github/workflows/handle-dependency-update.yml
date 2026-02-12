@@ -160,15 +160,19 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.gh_token }}
-          branch: "auto/update-${{ steps.validate.outputs.sender }}-${{ steps.validate.outputs.commit }}"
+          branch: "auto/update-${{ steps.validate.outputs.sender }}"
           commit-message: |
             ci: update ${{ steps.validate.outputs.sender }} to ${{ steps.validate.outputs.commit }}
             
             ${{ steps.changelog.outputs.changelog || 'No commit log available' }}
-          title: "ci: update ${{ steps.validate.outputs.sender }} to ${{ steps.validate.outputs.short_hash }}"
+          title: "ci: update ${{ steps.validate.outputs.sender }} (latest)"
           body: |
-            This PR updates ${{ inputs.manifest_path }} to point the project ${{ steps.validate.outputs.sender }} at commit ${{ steps.validate.outputs.commit }}.
-            Triggered by a change in ${{ steps.validate.outputs.sender }}.
+            This PR updates ${{ inputs.manifest_path }} to point the project ${{ steps.validate.outputs.sender }} to the latest commit.
+            
+            **Current commit:** `${{ steps.validate.outputs.commit }}`  
+            **Branch:** `${{ steps.validate.outputs.branch }}`
+            
+            > **Note:** This PR uses a consistent branch name per sender. When new updates arrive from the same sender, this PR will be automatically updated with the latest changes, ensuring updates are always applied in the correct order.
             
             ## Changes
             ${{ steps.update.outputs.old_revision && format('Updating from `{0}` to `{1}`', steps.update.outputs.old_revision, steps.validate.outputs.commit) || 'Initial revision set' }}

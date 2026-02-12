@@ -117,6 +117,8 @@ with:
 | No PR created | Verify `contents: write` permission |
 | Script not found | Check `update_script_path` or use default |
 | No commit log | Add `PRIVATE_REPO_TOKEN` secret |
+| Multiple PRs from same sender | Expected: only one PR per sender (updates automatically) |
+| Force-push warnings | Expected behavior: PR branch updates with latest changes |
 
 ## Testing
 
@@ -151,4 +153,5 @@ gh api repos/lhasystems/TARGET/dispatches \
 
 ## Full Documentation
 
-See [DISPATCH_SYSTEM.md](DISPATCH_SYSTEM.md) for complete documentation.
+- [DISPATCH_SYSTEM.md](DISPATCH_SYSTEM.md) - Complete setup and usage guide
+- [MERGE_ORDER_SAFETY.md](MERGE_ORDER_SAFETY.md) - How the system prevents wrong-order PR merging
