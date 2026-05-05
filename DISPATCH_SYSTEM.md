@@ -44,7 +44,8 @@ A reusable workflow that sends repository_dispatch events to dependent repositor
 - `event_type` (optional): The repository_dispatch event type (default: "dependency_update_request")
 
 **Secrets:**
-- `dispatch_token` (required): GitHub token with repo scope for dispatching events
+- `gh_app_id` (required): GitHub App ID for creating an installation token
+- `gh_app_private_key` (required): GitHub App private key for creating an installation token
 
 **Example Usage in Source Repository:**
 
@@ -66,7 +67,8 @@ jobs:
     with:
       target_repos: 'ec_diffuser,other_dependent_repo'
     secrets:
-      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
 #### `handle-dependency-update.yml`
@@ -82,7 +84,8 @@ A reusable workflow that handles repository_dispatch events, updates manifest fi
 
 **Secrets:**
 - `gh_token` (required): GitHub token for creating PRs (GITHUB_TOKEN is sufficient)
-- `private_repo_token` (optional): Token for fetching commit logs from private repos
+- `gh_app_id` (required): GitHub App ID for creating an installation token (used for private repo access)
+- `gh_app_private_key` (required): GitHub App private key (used for private repo access)
 
 **Example Usage in Target Repository:**
 
@@ -101,7 +104,8 @@ jobs:
       manifest_path: 'west.yml'
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
-      private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
 ### 2. Tools
@@ -147,13 +151,15 @@ python3 tools/update_west.py west.yml lhasystems/c_lib_control abc1234567890def
        with:
          target_repos: 'ec_diffuser'  # Add target repos
        secrets:
-         dispatch_token: ${{ secrets.DISPATCH_TOKEN }}
+         gh_app_id: ${{ secrets.GH_APP_ID }}
+         gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
    ```
 
-2. **Configure secret:**
+2. **Configure secrets:**
    - Go to repository Settings → Secrets and variables → Actions
-   - Create secret `DISPATCH_TOKEN` with a personal access token that has `repo` scope
-   - Token must have access to all target repositories
+   - Create secret `GH_APP_ID` with your GitHub App's numeric ID
+   - Create secret `GH_APP_PRIVATE_KEY` with your GitHub App's private key (PEM format)
+   - The GitHub App must be installed on all target repositories
 
 ### For Target Repositories (Receivers)
 
@@ -177,12 +183,15 @@ python3 tools/update_west.py west.yml lhasystems/c_lib_control abc1234567890def
          manifest_path: 'west.yml'
        secrets:
          gh_token: ${{ secrets.GITHUB_TOKEN }}
-         private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+         gh_app_id: ${{ secrets.GH_APP_ID }}
+         gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
    ```
 
-2. **Configure secret (optional):**
-   - To fetch commit logs from private repositories, create `PRIVATE_REPO_TOKEN`
-   - Token needs `repo` scope for private repository access
+2. **Configure secrets:**
+   - `GITHUB_TOKEN` is automatically available — no setup needed for PR creation
+   - Create `GH_APP_ID` with your GitHub App's numeric ID
+   - Create `GH_APP_PRIVATE_KEY` with your GitHub App's private key (PEM format)
+   - The GitHub App must be installed on this repository and on all sender repositories (for commit log access)
 
 ## Workflow Details
 
@@ -199,7 +208,7 @@ python3 tools/update_west.py west.yml lhasystems/c_lib_control abc1234567890def
 
 1. **Validate:** Checks that sender is in allowed list
 2. **Update:** Uses `update_west.py` to update manifest file
-3. **Changelog:** Fetches commit log between old and new revisions (if private_repo_token provided)
+3. **Changelog:** Fetches commit log between old and new revisions using the GitHub App token
 4. **Create PR:** Opens pull request with changes and commit log
 
 ## Configuration
@@ -247,9 +256,10 @@ The next auto-update will continue from your manually selected commit. See [MERG
 
 ### Token Permissions
 
-- **DISPATCH_TOKEN:** Requires `repo` scope, can trigger workflows in target repositories
-- **GITHUB_TOKEN:** Default token is sufficient for creating PRs in the same repository
-- **PRIVATE_REPO_TOKEN:** Only needed if fetching commit logs from private repositories
+- **`GITHUB_TOKEN`:** Default token is sufficient for creating PRs in the same repository (used by `handle-dependency-update.yml`)
+- **GitHub App:** Provides short-lived installation tokens via `actions/create-github-app-token@v1`; used for git authentication and fetching commit logs from private repositories. The App is read-only for repository contents and must be installed on all sender repositories.
+- **`GH_APP_ID`:** The numeric App ID found in your GitHub App settings
+- **`GH_APP_PRIVATE_KEY`:** The PEM-format private key generated in your GitHub App settings
 
 ### Sender Validation
 
@@ -262,8 +272,8 @@ The receiver workflow validates that dispatches come from allowed senders. Any r
 **Symptoms:** Target repository workflow doesn't trigger
 
 **Solutions:**
-1. Verify `DISPATCH_TOKEN` secret exists and has `repo` scope
-2. Check token has access to target repository
+1. Verify `GH_APP_ID` and `GH_APP_PRIVATE_KEY` secrets are set correctly
+2. Confirm the GitHub App is installed on all target repositories
 3. Ensure receiver workflow file is on default branch
 4. Verify receiver workflow listens for correct event type
 
@@ -283,6 +293,15 @@ The receiver workflow validates that dispatches come from allowed senders. Any r
 **Solutions:**
 1. Add sender repository to `allowed_senders` input
 2. Ensure sender uses full repository path (e.g., "lhasystems/c_lib_control")
+
+### No Commit Log in PR
+
+**Symptoms:** PR body shows "No commit log available"
+
+**Solutions:**
+1. Confirm the GitHub App is installed on the sender repository
+2. Verify the App has `contents: read` permission on the sender repository
+3. Check workflow logs for API error messages
 
 ### Update Script Fails
 
@@ -408,6 +427,11 @@ To prevent issues with merging PRs in the wrong order, the system uses a **singl
 - [West Manifest Format](https://docs.zephyrproject.org/latest/develop/west/manifest.html)
 
 ## Changelog
+
+### GitHub App Token Migration
+- Replaced static PAT secrets (`dispatch_token`, `gh_token`, `private_repo_token`) with GitHub App token authentication
+- Both workflows now use `actions/create-github-app-token@v1` to generate short-lived installation tokens
+- Required secrets are now unified: `gh_app_id` and `gh_app_private_key` for both sender and receiver
 
 ### Initial Release
 - Extracted from c_lib_control, zephyr_boards, and ec_diffuser repositories

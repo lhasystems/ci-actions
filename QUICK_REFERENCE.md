@@ -20,12 +20,14 @@ jobs:
     with:
       target_repos: 'ec_diffuser'
     secrets:
-      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
-### Required Secret
+### Required Secrets
 
-`DISPATCH_TOKEN` - Personal access token with `repo` scope
+- `GH_APP_ID` - GitHub App numeric ID
+- `GH_APP_PRIVATE_KEY` - GitHub App private key (PEM format)
 
 ## For Target Repositories (Receive Updates)
 
@@ -50,11 +52,15 @@ jobs:
       allowed_senders: 'lhasystems/c_lib_control'
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
-### Optional Secret
+### Required Secrets
 
-`PRIVATE_REPO_TOKEN` - For fetching commit logs from private repos
+- `GITHUB_TOKEN` - Automatically available; used for PR creation
+- `GH_APP_ID` - GitHub App numeric ID (for private repo access)
+- `GH_APP_PRIVATE_KEY` - GitHub App private key, PEM format (for private repo access)
 
 ## Common Inputs
 
@@ -112,11 +118,11 @@ with:
 
 | Problem | Solution |
 |---------|----------|
-| Dispatch not received | Check `DISPATCH_TOKEN` has repo scope |
+| Dispatch not received | Check `GH_APP_ID`/`GH_APP_PRIVATE_KEY` secrets and App installation |
 | Unauthorized sender | Add sender to `allowed_senders` |
 | No PR created | Verify `contents: write` permission |
 | Script not found | Check `update_script_path` or use default |
-| No commit log | Add `PRIVATE_REPO_TOKEN` secret |
+| No commit log | Ensure GitHub App is installed on sender repo |
 | Multiple PRs from same sender | Expected: only one PR per sender (updates automatically) |
 | Force-push warnings | Expected behavior: PR branch updates with latest changes |
 

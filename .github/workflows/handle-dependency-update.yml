@@ -22,11 +22,14 @@ on:
         type: string
         default: 'https://raw.githubusercontent.com/lhasystems/ci-actions/main/tools/update_west.py'
     secrets:
+      gh_token:
+        description: 'GitHub token for creating pull requests (GITHUB_TOKEN is sufficient)'
+        required: true
       gh_app_id:
-        description: 'GitHub App ID for creating an installation token'
+        description: 'GitHub App ID for creating an installation token (used for private repo access)'
         required: true
       gh_app_private_key:
-        description: 'GitHub App private key for creating an installation token'
+        description: 'GitHub App private key for creating an installation token (used for private repo access)'
         required: true
 
 permissions:
@@ -171,7 +174,7 @@ jobs:
       - name: Create PR with changes (if any)
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.gh_token }}
           branch: "auto/update-${{ steps.validate.outputs.sender }}"
           commit-message: |
             ci: update ${{ steps.validate.outputs.sender }} to ${{ steps.validate.outputs.commit }}
