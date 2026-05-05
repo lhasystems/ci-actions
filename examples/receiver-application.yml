@@ -32,10 +32,10 @@ jobs:
       # update_script_path: 'tools/update_west.py'
     
     secrets:
-      # Default GITHUB_TOKEN is sufficient for creating PRs
+      # GITHUB_TOKEN is sufficient for creating PRs in this repository
       gh_token: ${{ secrets.GITHUB_TOKEN }}
       
-      # Optional: Token for fetching commit logs from private repositories
-      # If not provided, commit logs won't be included in PRs
-      # Token needs 'repo' scope for private repo access
-      private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      # GitHub App credentials for accessing private sender repositories
+      # Required for fetching commit logs and git authentication
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}

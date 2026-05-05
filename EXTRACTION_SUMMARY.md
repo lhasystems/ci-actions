@@ -79,7 +79,8 @@ jobs:
     with:
       target_repos: 'ec_diffuser'
     secrets:
-      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
 **Benefits:**
@@ -101,10 +102,11 @@ jobs:
     with:
       target_repos: 'ec_diffuser'
     secrets:
-      dispatch_token: ${{ secrets.EC_DIFFUSER_DISPATCH_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
-**Note:** May need to rename secret from `EC_DIFFUSER_DISPATCH_TOKEN` to `DISPATCH_TOKEN` for consistency.
+**Note:** May need to create `GH_APP_ID` and `GH_APP_PRIVATE_KEY` secrets if not already present.
 
 ### ec_diffuser
 
@@ -122,7 +124,8 @@ jobs:
       manifest_path: 'west.yml'
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
-      private_repo_token: ${{ secrets.PRIVATE_REPO_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
 **File:** `tools/update_west.py`

@@ -31,7 +31,8 @@ jobs:
     with:
       target_repos: 'ec_diffuser'
     secrets:
-      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
 **In Target Repository (receives updates):**
@@ -43,6 +44,8 @@ jobs:
       allowed_senders: 'lhasystems/c_lib_control,lhasystems/zephyr_boards'
     secrets:
       gh_token: ${{ secrets.GITHUB_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
 ## Documentation
@@ -64,7 +67,8 @@ Sends repository_dispatch events to dependent repositories when source files cha
 - `target_repos`: Comma-separated target repository names
 
 **Required secrets:**
-- `dispatch_token`: GitHub token with repo scope
+- `gh_app_id`: GitHub App ID
+- `gh_app_private_key`: GitHub App private key
 
 ### `handle-dependency-update.yml`
 
@@ -74,7 +78,9 @@ Handles dependency update notifications, updates manifest files, and creates pul
 - `allowed_senders`: Comma-separated list of authorized sender repositories
 
 **Required secrets:**
-- `gh_token`: Token for PR creation
+- `gh_token`: Token for PR creation (GITHUB_TOKEN is sufficient)
+- `gh_app_id`: GitHub App ID (for private repo access)
+- `gh_app_private_key`: GitHub App private key (for private repo access)
 
 ## Tools
 

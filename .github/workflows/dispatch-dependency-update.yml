@@ -17,8 +17,11 @@ on:
         type: string
         default: 'dependency_update_request'
     secrets:
-      dispatch_token:
-        description: 'GitHub token with repo scope for dispatching to target repositories'
+      gh_app_id:
+        description: 'GitHub App ID for creating an installation token'
+        required: true
+      gh_app_private_key:
+        description: 'GitHub App private key for creating an installation token'
         required: true
 
 permissions:
@@ -49,6 +52,14 @@ jobs:
       fail-fast: false  # Continue notifying other repos even if one fails
 
     steps:
+      - name: Create GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.gh_app_id }}
+          private-key: ${{ secrets.gh_app_private_key }}
+          owner: lhasystems
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -64,7 +75,7 @@ jobs:
 
       - name: Call repository_dispatch on ${{ matrix.target_repo }}
         env:
-          DISPATCH_TOKEN: ${{ secrets.dispatch_token }}
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           COMMIT=${{ steps.find_commit.outputs.commit }}
           SENDER_REPO="${{ github.repository }}"
@@ -76,7 +87,7 @@ jobs:
           
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Accept: application/vnd.github.v3+json" \
-            -H "Authorization: token $DISPATCH_TOKEN" \
+            -H "Authorization: token $APP_TOKEN" \
             "https://api.github.com/repos/lhasystems/$TARGET_REPO/dispatches" \
             -d "$(jq -n --arg et "$EVENT_TYPE" --argjson cp "$PAYLOAD" '{event_type:$et, client_payload:$cp}')")
           

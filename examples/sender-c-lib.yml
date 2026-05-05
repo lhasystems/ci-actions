@@ -34,6 +34,7 @@ jobs:
       # event_type: 'dependency_update_request'
     
     secrets:
-      # Token with repo scope to dispatch events
+      # GitHub App credentials for dispatching events
       # Configure in repository Settings → Secrets and variables → Actions
-      dispatch_token: ${{ secrets.DISPATCH_TOKEN }}
+      gh_app_id: ${{ secrets.GH_APP_ID }}
+      gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}

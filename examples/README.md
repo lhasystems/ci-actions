@@ -23,7 +23,7 @@ Copy and adapt:
 2. Customize:
    - Update `target_repos` with repositories that depend on you
    - Adjust the `paths` triggers to match what should fire notifications
-3. Add `DISPATCH_TOKEN` secret to repository settings
+3. Add `GH_APP_ID` and `GH_APP_PRIVATE_KEY` secrets to repository settings
 
 ### Target Repository Setup
 
@@ -31,7 +31,7 @@ Copy and adapt:
 2. Customize:
    - Update `allowed_senders` with all your dependencies
    - Adjust `manifest_path` if not using west.yml
-3. Add `PRIVATE_REPO_TOKEN` secret (optional, for commit logs)
+3. Add `GH_APP_ID` and `GH_APP_PRIVATE_KEY` secrets to repository settings (`GITHUB_TOKEN` is automatically available for PR creation)
 
 ## Testing
 

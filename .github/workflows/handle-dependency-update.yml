@@ -23,11 +23,14 @@ on:
         default: 'https://raw.githubusercontent.com/lhasystems/ci-actions/main/tools/update_west.py'
     secrets:
       gh_token:
-        description: 'GitHub token for creating pull requests (default GITHUB_TOKEN is sufficient)'
+        description: 'GitHub token for creating pull requests (GITHUB_TOKEN is sufficient)'
         required: true
-      private_repo_token:
-        description: 'GitHub token with access to private repositories for fetching commit logs'
-        required: false
+      gh_app_id:
+        description: 'GitHub App ID for creating an installation token (used for private repo access)'
+        required: true
+      gh_app_private_key:
+        description: 'GitHub App private key for creating an installation token (used for private repo access)'
+        required: true
 
 permissions:
   contents: write
@@ -38,11 +41,23 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Create GitHub App installation token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.gh_app_id }}
+          private-key: ${{ secrets.gh_app_private_key }}
+          owner: lhasystems
+    
+      - name: Configure git to use GitHub App token for github.com
+        run: |
+          git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
+      
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
+                
       - name: Show payload (debug)
         run: |
           echo "payload: ${{ toJson(github.event.client_payload) }}"
@@ -128,7 +143,7 @@ jobs:
         id: changelog
         if: steps.update.outputs.old_revision != ''
         env:
-          GH_TOKEN: ${{ secrets.private_repo_token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           SENDER="${{ steps.validate.outputs.sender }}"
           OLD_REV="${{ steps.update.outputs.old_revision }}"
