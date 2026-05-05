@@ -59,6 +59,7 @@ jobs:
           app-id: ${{ secrets.gh_app_id }}
           private-key: ${{ secrets.gh_app_private_key }}
           owner: lhasystems
+          repositories: ${{ matrix.target_repo }}
 
       - name: Checkout
         uses: actions/checkout@v4
