@@ -73,7 +73,16 @@ jobs:
           LAST_COMMIT="$GITHUB_SHA"
           echo "commit=$LAST_COMMIT" >> $GITHUB_OUTPUT
           echo "short=${LAST_COMMIT:0:7}" >> $GITHUB_OUTPUT
-
+      
+      - name: Check Authorization on ${{ matrix.target_repo }}
+        env:
+          APP_TOKEN: ${{ steps.app-token.outputs.token }}
+          TARGET_REPO: "${{ matrix.target_repo }}"
+        run: |
+          curl -s -H "Authorization: token $APP_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          https://api.github.com/repos/lhasystems/$TARGET_REPO
+          
       - name: Call repository_dispatch on ${{ matrix.target_repo }}
         env:
           APP_TOKEN: ${{ steps.app-token.outputs.token }}
