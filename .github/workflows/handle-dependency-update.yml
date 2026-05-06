@@ -103,9 +103,8 @@ jobs:
       - name: Download update script (if remote)
         if: startsWith(inputs.update_script_path, 'http')
         run: |
-          mkdir -p tools
-          curl -sSL "${{ inputs.update_script_path }}" -o tools/update_west.py
-          chmod +x tools/update_west.py
+          curl -sSL "${{ inputs.update_script_path }}" -o /tmp/update_west.py
+          chmod +x /tmp/update_west.py
 
       - name: Update manifest revision
         id: update
@@ -116,7 +115,7 @@ jobs:
           
           # Determine script path
           if [[ "${{ inputs.update_script_path }}" == http* ]]; then
-            SCRIPT="tools/update_west.py"
+            SCRIPT="/tmp/update_west.py"
           else
             SCRIPT="${{ inputs.update_script_path }}"
           fi
