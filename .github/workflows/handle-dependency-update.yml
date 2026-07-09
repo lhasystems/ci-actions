@@ -21,6 +21,21 @@ on:
         required: false
         type: string
         default: 'https://raw.githubusercontent.com/lhasystems/ci-actions/main/tools/update_west.py'
+      sender:
+        description: 'Sender repository (e.g., "lhasystems/c_lib_control"). Overrides the repository_dispatch client_payload — used for manual (workflow_dispatch) runs'
+        required: false
+        type: string
+        default: ''
+      commit:
+        description: 'Commit SHA to pin the sender repository to. Overrides the repository_dispatch client_payload — used for manual (workflow_dispatch) runs'
+        required: false
+        type: string
+        default: ''
+      branch:
+        description: 'Branch the commit is on (informational, shown in the PR body). Overrides the repository_dispatch client_payload — used for manual (workflow_dispatch) runs'
+        required: false
+        type: string
+        default: ''
     secrets:
       gh_token:
         description: 'GitHub token for creating pull requests (GITHUB_TOKEN is sufficient)'
@@ -64,11 +79,19 @@ jobs:
 
       - name: Validate sender
         id: validate
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           # Parse allowed senders
           IFS=',' read -ra ALLOWED <<< "${{ inputs.allowed_senders }}"
-          SENDER=$(jq -r '.sender' <<< '${{ toJson(github.event.client_payload) }}')
-          
+
+          # Explicit inputs (manual/workflow_dispatch runs) take precedence
+          # over the repository_dispatch client_payload
+          SENDER="${{ inputs.sender }}"
+          if [ -z "$SENDER" ]; then
+            SENDER=$(jq -r '.sender' <<< '${{ toJson(github.event.client_payload) }}')
+          fi
+
           echo "Received dispatch from: $SENDER"
           
           # Validate sender is in allowed list
@@ -90,11 +113,24 @@ jobs:
           
           echo "✓ Sender authorized: $SENDER"
           
-          # Extract payload fields
-          COMMIT=$(jq -r '.commit' <<< '${{ toJson(github.event.client_payload) }}')
+          # Extract payload fields (explicit inputs win over client_payload)
+          COMMIT="${{ inputs.commit }}"
+          if [ -z "$COMMIT" ]; then
+            COMMIT=$(jq -r '.commit // empty' <<< '${{ toJson(github.event.client_payload) }}')
+          fi
+          BRANCH="${{ inputs.branch }}"
+          if [ -z "$BRANCH" ]; then
+            BRANCH=$(jq -r '.branch // empty' <<< '${{ toJson(github.event.client_payload) }}')
+          fi
+          BRANCH="${BRANCH:-main}"
+
+          # Manual runs may omit the commit — resolve the branch HEAD
+          if [ -z "$COMMIT" ]; then
+            echo "No commit given, resolving HEAD of $SENDER@$BRANCH"
+            COMMIT=$(gh api "repos/${SENDER}/commits/${BRANCH}" --jq '.sha')
+          fi
           SHORT_HASH="${COMMIT:0:7}"
-          BRANCH=$(jq -r '.branch' <<< '${{ toJson(github.event.client_payload) }}')
-          
+
           echo "sender=$SENDER" >> $GITHUB_OUTPUT
           echo "commit=$COMMIT" >> $GITHUB_OUTPUT
           echo "short_hash=$SHORT_HASH" >> $GITHUB_OUTPUT
