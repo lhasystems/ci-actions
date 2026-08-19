@@ -54,7 +54,7 @@ Publishes a Node package to GitHub Packages and records the release as a git tag
 Release, so every published version points at the commit it was built from.
 
 - **Version-bump driven:** the version in `package.json` decides when a release happens
-- **Fails without a bump:** a push whose version is not newer than the published one fails the run
+- **Fails without a bump:** a push whose version is already published fails the run
 - **Tags and releases:** creates `v<version>` and a GitHub Release with generated notes after a
   successful publish
 
@@ -107,8 +107,8 @@ Builds, tests and publishes a Node package to GitHub Packages, then tags the com
 GitHub Release. Intended to be called on pushes to the default branch.
 
 The version in `package.json` is the release trigger. The workflow **fails** when that version is
-not strictly newer than the latest version in the registry, or when the tag already exists, so
-nothing reaches the default branch without a version bump.
+already in the registry, or when the tag already exists, so nothing reaches the default branch
+without a version bump.
 
 **Inputs (all optional):**
 - `node_version`: Node.js version (default `20`)

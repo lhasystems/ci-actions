@@ -165,7 +165,7 @@ with:
 
 | Problem | Solution |
 |---------|----------|
-| `version X is not newer than the published Y` | Bump `version` in `package.json` - every push to `main` must carry a new version |
+| `@scope/pkg@X is already published` | Bump `version` in `package.json` - every push to `main` must carry a new version |
 | `Tag vX already exists` | That version was already released; bump to the next version |
 | Publish succeeded but no tag | Tag push failed after publishing: create the tag by hand, then bump for the next release |
 | Publish fails with 403 | Calling job is missing `packages: write` |

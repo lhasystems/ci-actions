@@ -5,8 +5,8 @@ name: Publish npm package
 # on pushes to their default branch.
 #
 # The version in package.json is the release trigger: a run publishes only when that
-# version is strictly newer than the latest version already in the registry, and it
-# FAILS otherwise, so nothing lands on the default branch without a version bump.
+# version is not already in the registry, and it FAILS otherwise, so nothing lands on
+# the default branch without a version bump.
 # After a successful publish the workflow creates the git tag <tag_prefix><version>
 # and, by default, a GitHub Release with generated notes.
 #
@@ -90,7 +90,7 @@ jobs:
 
           echo "Package: $NAME@$VERSION (tag $TAG)"
 
-      - name: Check the version is newer than the published one
+      - name: Check the version has not been published
         id: check
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -109,41 +109,24 @@ jobs:
 
           ERR="$RUNNER_TEMP/npm-view.err"
           set +e
-          LATEST=$(npm view "$NAME" version 2>"$ERR")
+          PUBLISHED=$(npm view "$NAME@$VERSION" version 2>"$ERR")
           STATUS=$?
           set -e
 
-          if [ $STATUS -ne 0 ]; then
-            if grep -qE 'E404|404 Not Found' "$ERR"; then
-              # Never published: any version is acceptable as the first release.
-              LATEST=''
-              echo "✓ $NAME has not been published before - $VERSION will be the first release"
-            else
-              echo "::error::✗ Could not read the published version of $NAME from the registry"
-              cat "$ERR" >&2
-              exit 1
-            fi
+          if [ $STATUS -eq 0 ] && [ -n "$PUBLISHED" ]; then
+            echo "::error::✗ $NAME@$VERSION is already published - bump the version in package.json"
+            exit 1
           fi
 
-          if [ -n "$LATEST" ]; then
-            # Compare major.minor.patch numerically. These packages use plain x.y.z;
-            # a prerelease suffix (1.2.3-rc.1) is compared by its numeric core only.
-            if node -e '
-              const core = v => String(v).split("-")[0].split(".").map(n => parseInt(n, 10) || 0);
-              const [a, b] = [core(process.argv[1]), core(process.argv[2])];
-              for (let i = 0; i < 3; i++) {
-                if ((a[i] || 0) !== (b[i] || 0)) process.exit((a[i] || 0) > (b[i] || 0) ? 0 : 1);
-              }
-              process.exit(1);
-            ' "$VERSION" "$LATEST"; then
-              echo "✓ $VERSION is newer than the published $LATEST"
-            else
-              echo "::error::✗ package.json version $VERSION is not newer than the published $LATEST - bump the version in package.json"
-              exit 1
-            fi
+          # A 404 means this version (or the package itself) is not in the registry,
+          # which is what we want. Any other failure is a registry problem, not a green light.
+          if [ $STATUS -ne 0 ] && ! grep -qE 'E404|404 Not Found' "$ERR"; then
+            echo "::error::✗ Could not check whether $NAME@$VERSION is already published"
+            cat "$ERR" >&2
+            exit 1
           fi
 
-          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+          echo "✓ $NAME@$VERSION is not published yet"
 
       - name: Install dependencies
         env:
@@ -195,7 +178,6 @@ jobs:
           NAME: ${{ steps.meta.outputs.name }}
           VERSION: ${{ steps.meta.outputs.version }}
           TAG: ${{ steps.meta.outputs.tag }}
-          PREVIOUS: ${{ steps.check.outputs.latest }}
         run: |
           set -euo pipefail
-          echo "Published \`$NAME@$VERSION\` and tagged \`$TAG\` (previous version: \`${PREVIOUS:-none}\`)." >> "$GITHUB_STEP_SUMMARY"
+          echo "Published \`$NAME@$VERSION\` and tagged \`$TAG\`." >> "$GITHUB_STEP_SUMMARY"
