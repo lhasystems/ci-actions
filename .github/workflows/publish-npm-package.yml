@@ -1,0 +1,201 @@
+name: Publish npm package
+
+# Reusable workflow for publishing a Node package to GitHub Packages.
+# Called from package repositories (mlm-auth, mlm-models, mlm-qr-codes, mlm-sdos, ...)
+# on pushes to their default branch.
+#
+# The version in package.json is the release trigger: a run publishes only when that
+# version is strictly newer than the latest version already in the registry, and it
+# FAILS otherwise, so nothing lands on the default branch without a version bump.
+# After a successful publish the workflow creates the git tag <tag_prefix><version>
+# and, by default, a GitHub Release with generated notes.
+#
+# The calling job must grant:
+#   permissions:
+#     contents: write   # push the tag / create the release
+#     packages: write   # publish to GitHub Packages
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        description: 'Node.js version used to build, test and publish'
+        required: false
+        type: string
+        default: '20'
+      pnpm_version:
+        description: 'pnpm version used to install, build, test and publish'
+        required: false
+        type: string
+        default: '8'
+      run_tests:
+        description: 'Run `pnpm test` before publishing'
+        required: false
+        type: boolean
+        default: true
+      tag_prefix:
+        description: 'Prefix for the git tag created after a successful publish (tag is <prefix><version>)'
+        required: false
+        type: string
+        default: 'v'
+      create_release:
+        description: 'Create a GitHub Release, with generated notes, for the new tag'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history and tags: the version check looks for an existing tag,
+          # and the release notes are generated from the commit range.
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          registry-url: https://npm.pkg.github.com/
+          scope: '@lhasystems'
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ inputs.pnpm_version }}
+
+      - name: Read package metadata
+        id: meta
+        env:
+          TAG_PREFIX: ${{ inputs.tag_prefix }}
+        run: |
+          set -euo pipefail
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="${TAG_PREFIX}${VERSION}"
+
+          {
+            echo "name=$NAME"
+            echo "version=$VERSION"
+            echo "tag=$TAG"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Package: $NAME@$VERSION (tag $TAG)"
+
+      - name: Check the version is newer than the published one
+        id: check
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NAME: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          # A tag for this version means it was already released (or a release was
+          # started and its publish never completed) - either way, do not republish.
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+            echo "::error::✗ Tag $TAG already exists - bump the version in package.json"
+            exit 1
+          fi
+
+          ERR="$RUNNER_TEMP/npm-view.err"
+          set +e
+          LATEST=$(npm view "$NAME" version 2>"$ERR")
+          STATUS=$?
+          set -e
+
+          if [ $STATUS -ne 0 ]; then
+            if grep -qE 'E404|404 Not Found' "$ERR"; then
+              # Never published: any version is acceptable as the first release.
+              LATEST=''
+              echo "✓ $NAME has not been published before - $VERSION will be the first release"
+            else
+              echo "::error::✗ Could not read the published version of $NAME from the registry"
+              cat "$ERR" >&2
+              exit 1
+            fi
+          fi
+
+          if [ -n "$LATEST" ]; then
+            # Compare major.minor.patch numerically. These packages use plain x.y.z;
+            # a prerelease suffix (1.2.3-rc.1) is compared by its numeric core only.
+            if node -e '
+              const core = v => String(v).split("-")[0].split(".").map(n => parseInt(n, 10) || 0);
+              const [a, b] = [core(process.argv[1]), core(process.argv[2])];
+              for (let i = 0; i < 3; i++) {
+                if ((a[i] || 0) !== (b[i] || 0)) process.exit((a[i] || 0) > (b[i] || 0) ? 0 : 1);
+              }
+              process.exit(1);
+            ' "$VERSION" "$LATEST"; then
+              echo "✓ $VERSION is newer than the published $LATEST"
+            else
+              echo "::error::✗ package.json version $VERSION is not newer than the published $LATEST - bump the version in package.json"
+              exit 1
+            fi
+          fi
+
+          echo "latest=$LATEST" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm i
+
+      - name: Build
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm build
+
+      - name: Test
+        if: ${{ inputs.run_tests }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm test
+
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm publish --no-git-checks
+
+      - name: Tag the published version
+        env:
+          NAME: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "$NAME@$VERSION"
+          # Pushed with GITHUB_TOKEN, so this tag does not trigger further workflows.
+          git push origin "$TAG"
+          echo "✓ Tagged $TAG"
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA"
+          echo "✓ Created release $TAG"
+
+      - name: Summary
+        env:
+          NAME: ${{ steps.meta.outputs.name }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          PREVIOUS: ${{ steps.check.outputs.latest }}
+        run: |
+          set -euo pipefail
+          echo "Published \`$NAME@$VERSION\` and tagged \`$TAG\` (previous version: \`${PREVIOUS:-none}\`)." >> "$GITHUB_STEP_SUMMARY"

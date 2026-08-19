@@ -2,6 +2,10 @@
 
 This directory contains example workflow files showing how to use the reusable workflows from ci-actions.
 
+## For Package Repositories
+
+- **`publish-npm-package.yml`** - Publishes a Node package to GitHub Packages, tagged and released
+
 ## For Source Repositories (Senders)
 
 Copy and adapt the example workflows based on your repository type:
@@ -16,6 +20,14 @@ Copy and adapt:
 - **`receiver-application.yml`** - For application repositories like ec_diffuser
 
 ## Integration Steps
+
+### Package Repository Setup
+
+1. Copy `publish-npm-package.yml` to `.github/workflows/publish.yml`
+2. Nothing to customize for the mlm-* packages - the defaults are Node 20 and pnpm 8, and the
+   package name, version and tag come from `package.json`
+3. Release by bumping `version` in `package.json` and merging to `main`; a push without a bump
+   fails the run
 
 ### Source Repository Setup
 

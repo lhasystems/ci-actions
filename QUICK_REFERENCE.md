@@ -1,6 +1,43 @@
 # Quick Reference Guide
 
-Quick reference for using the dispatch dependency update system.
+Quick reference for using the reusable workflows: package publishing and the dispatch dependency
+update system.
+
+## For Package Repositories (Publish to GitHub Packages)
+
+### Minimal Setup
+
+```yaml
+# .github/workflows/publish.yml
+name: Publish package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    uses: lhasystems/ci-actions/.github/workflows/publish-npm-package.yml@main
+    permissions:
+      contents: write   # push the tag / create the release
+      packages: write   # publish to GitHub Packages
+```
+
+### Cutting a Release
+
+1. Bump `version` in `package.json` in your PR
+2. Merge to `main`
+3. The workflow publishes the package, pushes the tag `v<version>` and creates a GitHub Release
+
+Forget the bump and the run **fails** - that is the reminder. Nothing is published twice, and no
+published version is left without a tag.
+
+### Required Secrets
+
+None. `GITHUB_TOKEN` is available to the called workflow automatically; the calling job just needs
+`contents: write` and `packages: write`.
 
 ## For Source Repositories (Send Updates)
 
@@ -64,6 +101,16 @@ jobs:
 
 ## Common Inputs
 
+### publish-npm-package.yml
+
+| Input | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `node_version` | - | `20` | Node.js version |
+| `pnpm_version` | - | `8` | pnpm version |
+| `run_tests` | - | `true` | Run `pnpm test` before publishing |
+| `tag_prefix` | - | `v` | Tag is `<prefix><version>` |
+| `create_release` | - | `true` | Create a GitHub Release with generated notes |
+
 ### dispatch-dependency-update.yml
 
 | Input | Required | Default | Description |
@@ -118,6 +165,11 @@ with:
 
 | Problem | Solution |
 |---------|----------|
+| `version X is not newer than the published Y` | Bump `version` in `package.json` - every push to `main` must carry a new version |
+| `Tag vX already exists` | That version was already released; bump to the next version |
+| Publish succeeded but no tag | Tag push failed after publishing: create the tag by hand, then bump for the next release |
+| Publish fails with 403 | Calling job is missing `packages: write` |
+| Tag or release step fails with 403 | Calling job is missing `contents: write` |
 | Dispatch not received | Check `GH_APP_ID`/`GH_APP_PRIVATE_KEY` secrets and App installation |
 | Unauthorized sender | Add sender to `allowed_senders` |
 | No PR created | Verify `contents: write` permission |
@@ -152,6 +204,7 @@ gh api repos/lhasystems/TARGET/dispatches \
 
 | File | Purpose |
 |------|---------|
+| `.github/workflows/publish.yml` | Package publishing workflow |
 | `.github/workflows/notify-*.yml` | Sender workflow |
 | `.github/workflows/handle-*.yml` | Receiver workflow |
 | `tools/update_west.py` | Update script (optional local) |

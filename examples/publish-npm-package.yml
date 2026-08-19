@@ -1,0 +1,30 @@
+# Example: publish a Node package to GitHub Packages, tagged and released
+#
+# Copy to .github/workflows/publish.yml in the package repository.
+#
+# Releasing is driven by the version in package.json: bump it in the PR, and the
+# run that lands on main publishes the package, creates the tag v<version> and a
+# GitHub Release. A push whose version was not bumped fails the run.
+
+name: Publish package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    uses: lhasystems/ci-actions/.github/workflows/publish-npm-package.yml@main
+    permissions:
+      contents: write   # push the tag / create the release
+      packages: write   # publish to GitHub Packages
+
+    # All inputs are optional; the defaults below are what the mlm-* packages use.
+    # with:
+    #   node_version: '20'
+    #   pnpm_version: '8'
+    #   run_tests: true
+    #   tag_prefix: 'v'
+    #   create_release: true
