@@ -1,0 +1,43 @@
+# Example: publish a Node package to GitHub Packages, tagged and released
+#
+# Copy to .github/workflows/publish.yml in the package repository.
+#
+# Releasing is driven by the version in package.json: bump it in the PR, and the
+# run that lands on main publishes the package, creates the tag v<version> and a
+# GitHub Release. A push that changes the package but not its version fails the run.
+#
+# workflow_dispatch is here so a release can be retried without an empty commit;
+# the reusable workflow refuses to publish from anywhere but the default branch.
+
+name: Publish package
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    # Only the paths that change what gets published. A source change landing on
+    # main without a version bump fails the run - that is the point - while README
+    # and CI edits never start it.
+    paths:
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
+
+jobs:
+  publish:
+    uses: lhasystems/ci-actions/.github/workflows/publish-npm-package.yml@main
+    permissions:
+      contents: write   # push the tag / create the release
+      packages: write   # publish to GitHub Packages
+
+    # All inputs are optional; the defaults below are what the mlm-* packages use.
+    # with:
+    #   node_version: '20'
+    #   pnpm_version: '10'   # '' defers to `packageManager` in package.json
+    #   run_build: true
+    #   run_tests: true
+    #   tag_prefix: 'v'
+    #   create_release: true

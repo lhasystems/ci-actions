@@ -48,6 +48,34 @@ jobs:
       gh_app_private_key: ${{ secrets.GH_APP_PRIVATE_KEY }}
 ```
 
+### Package Publishing
+
+Publishes a Node package to GitHub Packages and records the release as a git tag and a GitHub
+Release, so every published version points at the commit it was built from.
+
+- **Version-bump driven:** the version in `package.json` decides when a release happens
+- **Fails without a bump:** a push that changes the package but not its version fails the run, so
+  code cannot reach `main` unreleased
+- **Tags and releases:** creates `v<version>` and a GitHub Release with generated notes after a
+  successful publish
+
+```yaml
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'tsconfig.json']
+
+jobs:
+  publish:
+    uses: lhasystems/ci-actions/.github/workflows/publish-npm-package.yml@main
+    permissions:
+      contents: write
+      packages: write
+```
+
+The `paths` filter belongs in the caller (a reusable workflow cannot set its own trigger). Keep it
+to the files that change what gets published, so doc-only commits do not start a run.
+
 ## Documentation
 
 - **[Quick Reference](QUICK_REFERENCE.md)** - Fast lookup for common tasks
@@ -81,6 +109,32 @@ Handles dependency update notifications, updates manifest files, and creates pul
 - `gh_token`: Token for PR creation (GITHUB_TOKEN is sufficient)
 - `gh_app_id`: GitHub App ID (for private repo access)
 - `gh_app_private_key`: GitHub App private key (for private repo access)
+
+### `publish-npm-package.yml`
+
+Builds, tests and publishes a Node package to GitHub Packages, then tags the commit and creates a
+GitHub Release. Intended to be called on pushes to the default branch.
+
+The version in `package.json` is the release trigger. The workflow **fails** when that version is
+already in the registry, or when the tag already exists, so nothing reaches the default branch
+without a version bump.
+
+**Inputs (all optional):**
+- `node_version`: Node.js version (default `20`)
+- `pnpm_version`: pnpm version (default `10`; leave empty to defer to `packageManager` in `package.json`)
+- `run_build`: run `pnpm build` before publishing (default `true`)
+- `run_tests`: run `pnpm test` before publishing (default `true`)
+- `tag_prefix`: prefix for the created tag (default `v`, so the tag is `v<version>`)
+- `create_release`: create a GitHub Release with generated notes (default `true`)
+
+**Required permissions on the calling job:**
+- `contents: write` (push the tag, create the release)
+- `packages: write` (publish to GitHub Packages)
+
+No secrets to pass: `GITHUB_TOKEN` is available to the called workflow automatically.
+
+Publishing is refused from anywhere but the repository's default branch, so a manual
+`workflow_dispatch` run on a feature branch cannot push a release.
 
 ## Tools
 
