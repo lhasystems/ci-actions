@@ -24,8 +24,9 @@ Copy and adapt:
 ### Package Repository Setup
 
 1. Copy `publish-npm-package.yml` to `.github/workflows/publish.yml`
-2. Nothing to customize for the mlm-* packages - the defaults are Node 20 and pnpm 8, and the
-   package name, version and tag come from `package.json`
+2. Nothing to customize for the mlm-* packages - the defaults are Node 20 and pnpm 10, and the
+   package name, version and tag come from `package.json`. Pass `pnpm_version` if the repo needs a
+   different pnpm (or `''` if it pins `packageManager`)
 3. Release by bumping `version` in `package.json` and merging to `main`; a push without a bump
    fails the run
 

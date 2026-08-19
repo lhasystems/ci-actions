@@ -112,7 +112,8 @@ without a version bump.
 
 **Inputs (all optional):**
 - `node_version`: Node.js version (default `20`)
-- `pnpm_version`: pnpm version (default `8`)
+- `pnpm_version`: pnpm version (default `10`; leave empty to defer to `packageManager` in `package.json`)
+- `run_build`: run `pnpm build` before publishing (default `true`)
 - `run_tests`: run `pnpm test` before publishing (default `true`)
 - `tag_prefix`: prefix for the created tag (default `v`, so the tag is `v<version>`)
 - `create_release`: create a GitHub Release with generated notes (default `true`)
@@ -122,6 +123,9 @@ without a version bump.
 - `packages: write` (publish to GitHub Packages)
 
 No secrets to pass: `GITHUB_TOKEN` is available to the called workflow automatically.
+
+Publishing is refused from anywhere but the repository's default branch, so a manual
+`workflow_dispatch` run on a feature branch cannot push a release.
 
 ## Tools
 

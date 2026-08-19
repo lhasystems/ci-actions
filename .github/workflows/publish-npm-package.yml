@@ -24,10 +24,15 @@ on:
         type: string
         default: '20'
       pnpm_version:
-        description: 'pnpm version used to install, build, test and publish'
+        description: 'pnpm version used to install, build, test and publish (leave empty to defer to `packageManager` in package.json)'
         required: false
         type: string
-        default: '8'
+        default: '10'
+      run_build:
+        description: 'Run `pnpm build` before publishing'
+        required: false
+        type: boolean
+        default: true
       run_tests:
         description: 'Run `pnpm test` before publishing'
         required: false
@@ -53,6 +58,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Refuse to publish from a non-default branch
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # workflow_dispatch can be started from any branch; publishing unreviewed
+          # code (plus a tag and release pointing off the default branch) should not
+          # be one keystroke away, so the guard lives here rather than in the caller.
+          if [ "$GITHUB_REF" != "refs/heads/${DEFAULT_BRANCH:-}" ]; then
+            echo "::error::✗ Publishing is only allowed from ${DEFAULT_BRANCH:-the default branch} (got $GITHUB_REF)"
+            exit 1
+          fi
+          echo "✓ Publishing from $GITHUB_REF"
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -109,7 +128,10 @@ jobs:
 
           ERR="$RUNNER_TEMP/npm-view.err"
           set +e
-          PUBLISHED=$(npm view "$NAME@$VERSION" version 2>"$ERR")
+          # --registry pins the lookup to the registry we publish to: the .npmrc that
+          # setup-node writes only maps the @lhasystems scope, so an unscoped or
+          # differently scoped package would otherwise be checked against npmjs.org.
+          PUBLISHED=$(npm view "$NAME@$VERSION" version --registry=https://npm.pkg.github.com/ 2>"$ERR")
           STATUS=$?
           set -e
 
@@ -134,6 +156,7 @@ jobs:
         run: pnpm i
 
       - name: Build
+        if: ${{ inputs.run_build }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm build
@@ -149,19 +172,10 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm publish --no-git-checks
 
-      - name: Tag the published version
-        env:
-          TAG: ${{ steps.meta.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # Lightweight tag: no tagger identity to configure, and the release notes
-          # live on the GitHub Release rather than in a tag message.
-          git tag "$TAG"
-          # Pushed with GITHUB_TOKEN, so this tag does not trigger further workflows.
-          git push origin "$TAG"
-          echo "✓ Tagged $TAG"
-
-      - name: Create GitHub Release
+      # `gh release create` creates the tag itself, so the tag and the release land in
+      # one call - a failure between them would otherwise leave a tagged commit with no
+      # release, which the version check then refuses to retry.
+      - name: Tag and release the published version
         if: ${{ inputs.create_release }}
         env:
           GH_TOKEN: ${{ github.token }}
@@ -169,7 +183,19 @@ jobs:
         run: |
           set -euo pipefail
           gh release create "$TAG" --title "$TAG" --generate-notes --target "$GITHUB_SHA"
-          echo "✓ Created release $TAG"
+          echo "✓ Tagged $TAG and created its release"
+
+      - name: Tag the published version
+        if: ${{ !inputs.create_release }}
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # Lightweight tag: no tagger identity to configure.
+          git tag "$TAG"
+          # Pushed with GITHUB_TOKEN, so this tag does not trigger further workflows.
+          git push origin "$TAG"
+          echo "✓ Tagged $TAG"
 
       - name: Summary
         env:

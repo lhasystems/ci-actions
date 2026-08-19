@@ -106,7 +106,8 @@ jobs:
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
 | `node_version` | - | `20` | Node.js version |
-| `pnpm_version` | - | `8` | pnpm version |
+| `pnpm_version` | - | `10` | pnpm version; empty defers to `packageManager` |
+| `run_build` | - | `true` | Run `pnpm build` before publishing |
 | `run_tests` | - | `true` | Run `pnpm test` before publishing |
 | `tag_prefix` | - | `v` | Tag is `<prefix><version>` |
 | `create_release` | - | `true` | Create a GitHub Release with generated notes |
@@ -168,6 +169,9 @@ with:
 | `@scope/pkg@X is already published` | Bump `version` in `package.json` - every push to `main` must carry a new version |
 | `Tag vX already exists` | That version was already released; bump to the next version |
 | Publish succeeded but no tag | Tag push failed after publishing: create the tag by hand, then bump for the next release |
+| `Publishing is only allowed from main` | Manual runs must be started from the default branch |
+| `Multiple versions of pnpm specified` | The repo pins `packageManager`; pass `pnpm_version: ''` |
+| `ERR_PNPM_NO_LOCKFILE` / lockfile ignored | `pnpm_version` is older than the lockfile format; raise it |
 | Publish fails with 403 | Calling job is missing `packages: write` |
 | Tag or release step fails with 403 | Calling job is missing `contents: write` |
 | Dispatch not received | Check `GH_APP_ID`/`GH_APP_PRIVATE_KEY` secrets and App installation |
