@@ -151,14 +151,12 @@ jobs:
 
       - name: Tag the published version
         env:
-          NAME: ${{ steps.meta.outputs.name }}
-          VERSION: ${{ steps.meta.outputs.version }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git tag -a "$TAG" -m "$NAME@$VERSION"
+          # Lightweight tag: no tagger identity to configure, and the release notes
+          # live on the GitHub Release rather than in a tag message.
+          git tag "$TAG"
           # Pushed with GITHUB_TOKEN, so this tag does not trigger further workflows.
           git push origin "$TAG"
           echo "✓ Tagged $TAG"
