@@ -54,11 +54,17 @@ Publishes a Node package to GitHub Packages and records the release as a git tag
 Release, so every published version points at the commit it was built from.
 
 - **Version-bump driven:** the version in `package.json` decides when a release happens
-- **Fails without a bump:** a push whose version is already published fails the run
+- **Fails without a bump:** a push that changes the package but not its version fails the run, so
+  code cannot reach `main` unreleased
 - **Tags and releases:** creates `v<version>` and a GitHub Release with generated notes after a
   successful publish
 
 ```yaml
+on:
+  push:
+    branches: [main]
+    paths: ['src/**', 'package.json', 'pnpm-lock.yaml', 'vite.config.ts', 'tsconfig.json']
+
 jobs:
   publish:
     uses: lhasystems/ci-actions/.github/workflows/publish-npm-package.yml@main
@@ -66,6 +72,9 @@ jobs:
       contents: write
       packages: write
 ```
+
+The `paths` filter belongs in the caller (a reusable workflow cannot set its own trigger). Keep it
+to the files that change what gets published, so doc-only commits do not start a run.
 
 ## Documentation
 

@@ -16,6 +16,12 @@ on:
   push:
     branches:
       - main
+    paths:                      # only what changes the published artifact
+      - 'src/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'vite.config.ts'
+      - 'tsconfig.json'
 
 jobs:
   publish:
@@ -31,8 +37,9 @@ jobs:
 2. Merge to `main`
 3. The workflow publishes the package, pushes the tag `v<version>` and creates a GitHub Release
 
-Forget the bump and the run **fails** - that is the reminder. Nothing is published twice, and no
-published version is left without a tag.
+Forget the bump and the run **fails** - that is the reminder, so source changes cannot land on
+`main` unreleased. Doc-only commits do not match the `paths` filter and never start a run. Nothing
+is published twice, and no published version is left without a tag.
 
 ### Required Secrets
 
